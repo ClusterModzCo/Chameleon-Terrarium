@@ -1,0 +1,60 @@
+#include "Wire.h"
+#include "RTClib.h"
+#include "DHT.h"
+
+#define DHTPIN 10     // what digital pin the DHT22 is conected to
+#define DHTTYPE DHT22   // there are multiple kinds of DHT sensors
+
+DHT dht(DHTPIN, DHTTYPE);
+RTC_DS3231 rtc;
+
+char daysOfTheWeek[7][12] = {" Sunday ", " Monday ", " Tuesday ", " Wednesday ", " Thursday ", " Friday ", " Saturday "};
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+  
+  #ifndef ESP8266
+  
+  while (!Serial); // for Leonardo/Micro/Zero
+#endif
+ 
+  if (! rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+ 
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, lets set the time!");
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+}
+
+void loop() {
+  DateTime now = rtc.now();
+    
+  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+  Serial.print(now.hour(), DEC); Serial.print(':');
+  Serial.print(now.minute(), DEC); Serial.print(':');
+  Serial.println(now.second(), DEC);
+      
+    float h = dht.readHumidity();
+    float f = dht.readTemperature(true);
+
+    if (isnan(h) || isnan(f)) {
+      Serial.println("Failed to read from DHT sensor!");
+      return;
+    }
+
+    float hif = dht.computeHeatIndex(f, h);
+    Serial.print("Temperature: ");
+    Serial.print(hif);
+    Serial.print(" *F ");
+    Serial.print("Humidity: ");
+    Serial.print(h);
+    Serial.print(" %\t  ");
+    Serial.print("Heat Index: ");
+    Serial.print(f);
+    Serial.println(" *F\t ");
+  delay(1000);
+  }
