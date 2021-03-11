@@ -1,0 +1,117 @@
+#include "DHT.h"
+#include "RTClib.h"
+#include "Nextion.h"
+
+                    //----- WATER LEVEL SENSOR LED 
+int red=2;
+int green=3;
+int blue=4;
+                    //---- DIGITAL PINS ---
+#define DHTPIN A0                            // sensor pin 
+#define DHTTYPE DHT22              // define sensor type
+      // #define water level senor pin
+      // #define water level sensor type 
+#define TIMER 4                             // for lights 12V LEDS 
+#define WATERFALL 6                         // constant unless turned off BLUE LED 12V PUMP
+#define FAN 8                               // Define the pin for the WHITE LED 12V
+#define MISTER 10                           // mist 5 seconds 2 times a day or if humidity drops blow xxxx YELLOW LED 12V PUMP
+#define HEATMAT 12                          //define pin for relay to heat mat RED LED 120V
+
+                    //---- ANALOG PINS ---
+DHT dht(DHTPIN, DHTTYPE);
+RTC_DS3231 rtc;                             // pins A4 A5
+
+char daysOfTheWeek[7][12] = {" Sunday ", " Monday ", " Tuesday ", " Wednesday ", " Thursday ", " Friday ", " Saturday "};
+
+void setup() {
+    Serial.begin(9600);                       //The default baud rate of the Nextion TFT is 9600. 
+    dht.begin();
+    nexInit();
+    pinMode (red,OUTPUT);
+    pinMode (green,OUTPUT);
+    pinMode (blue,OUTPUT);    
+
+  if (! rtc.begin()) {
+    Serial.println("NO RTC3231");
+    while (1);
+  }
+
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, lets set the time!");
+    rtc.adjust(DateTime(F(__TIME__), F(__DATE__)));
+  }
+  pinMode(FAN,OUTPUT);                      //Define pin as OUTPUT
+  pinMode (WATERFALL,OUTPUT);
+  pinMode (TIMER,OUTPUT);
+  pinMode (MISTER,OUTPUT);
+}
+
+void loop() {
+
+  void readDHT22();
+  float h = dht.readHumidity();             // Read the humidity in %:
+  float t = dht.readTemperature();          // Read the temperature as Celsius:
+  float f = dht.readTemperature(true);      // Read the temperature as Fahrenheit:
+
+  if (isnan(h) || isnan(t) || isnan(f)) {          // Check if any reads failed and exit early (to try again):
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+  float hif = dht.computeHeatIndex(f, h);    // Compute heat index in Fahrenheit (default):
+  float hic = dht.computeHeatIndex(t, h, false);// Compute heat index in Celsius:
+  Serial.print("Humidity: ");
+  Serial.print(h);
+  Serial.print(" % ");
+  Serial.print("Temperature: ");
+  Serial.print(f);
+  Serial.print(" \xC2\xB0");
+  Serial.print("F ");
+  Serial.print("Heat index: ");
+  Serial.print(hif);
+  Serial.print(" \xC2\xB0");
+  Serial.println("F");
+delay (1000);
+
+  void readRTC();
+  DateTime now = rtc.now();
+
+  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+  Serial.print(now.hour(), DEC); Serial.print(':');
+  Serial.print(now.minute(), DEC); Serial.print(':');
+  Serial.println(now.second(), DEC);
+
+  void readFAN(); 
+  if(Serial.available()>0)                  //If we receive something...
+  {
+    String Received = Serial.readString();  //Save the received String in the Received variable
+    if(int(Received[0]) == 1)               //If the first character of "Received" is "1"
+    {
+      digitalWrite(FAN,HIGH);               //We turn on the LED
+    }
+    if(int(Received[0]) == 0)               //if is a "0"
+    {
+      digitalWrite(FAN,LOW);                //We turn the LED off
+    }
+  }
+   void readWATERLEVEL(); 
+  int value = analogRead(A1);   // read the input on analog pin 0:
+  Serial.print ("Water Level  ");
+  
+  if (value > 550) {
+    Serial.println("Full");
+    digitalWrite (red,HIGH);
+    digitalWrite(green,LOW);
+    digitalWrite(blue,LOW);}
+  else if ((value > 500) && (value <= 600)) {
+    Serial.println("Good");
+    digitalWrite (green,HIGH);
+    digitalWrite (red,LOW);
+    }
+  else{
+    Serial.println("Refill");
+    digitalWrite (blue,HIGH);
+    digitalWrite (red,LOW);
+    digitalWrite (green,LOW);
+  delay(100);
+  }
+}
