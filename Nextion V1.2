@@ -1,0 +1,188 @@
+#include "DHT.h"
+#include "RTClib.h"
+#include "Nextion.h"
+
+int WaterLevelBar;
+                    //----- WATER LEVEL SENSOR LED 
+int red=A7;
+int white=A8;
+int blue=A9;
+                    //---- DIGITAL PINS ---
+#define DHTPIN A0                           // sensor pin 
+#define DHTTYPE DHT22                       // define sensor type
+#define LIGHTS 7                            // define light pin D7 
+#define WATERFALL 8                         // constant unless turned off BLUE LED 12V PUMP D8
+#define FAN 9                               // fan pin D9
+#define MISTER 10                           //MISTER PIN D10 
+#define Heat 11                             // heat PIN D11 
+
+                    //---- ANALOG PINS ---
+DHT dht(DHTPIN, DHTTYPE);
+RTC_DS3231 rtc;                             // pins A4 A5
+
+char daysOfTheWeek[7][12] = {" Sunday ", " Monday ", " Tuesday ", " Wednesday ", " Thursday ", " Friday ", " Saturday "};
+
+//-----------------------------LIGHTS pin 7 coding on and off-----------------------
+
+void DataFromNextionLIGHTS(String data_from_display) {
+  if(data_from_display == "LIGHTON") {                         //Actions for ON command
+    Serial.println("ON command recieved");
+    digitalWrite(7, HIGH);
+  }
+
+  if(data_from_display == "LIGHTOFF") {                        //Actions for OFF command
+    Serial.println("OFF command recieved");
+    digitalWrite(7, LOW);
+  }
+}
+
+//-----------------------------WATERFALL pin 8 coding on and off-----------------------
+void DataFromNextionWATERFALL(String data_from_display) {
+  if(data_from_display == "WATERFALLON") {                         //Actions for ON command
+    Serial.println("ON command recieved");
+    digitalWrite(8, HIGH);
+  }
+
+  if(data_from_display == "WATERFALLOFF") {                        //Actions for OFF command
+    Serial.println("OFF command recieved");
+    digitalWrite(8, LOW);
+  }
+}
+
+//-----------------------------FAN pin 9 coding on and off-----------------------
+
+void DataFromNextionFAN(String data_from_display) {
+  if(data_from_display == "FANON") {                         //Actions for ON command
+    Serial.println("ON command recieved");
+    digitalWrite(9, HIGH);
+  }
+
+  if(data_from_display == "FANOFF") {                        //Actions for OFF command
+    Serial.println("OFF command recieved");
+    digitalWrite(9, LOW);
+  }
+}
+
+//-----------------------------MISTER pin 10 coding on and off-----------------------
+
+void DataFromNextionMISTER(String data_from_display) {
+  if(data_from_display == "MISTERON") {                         //Actions for ON command
+    Serial.println("ON command recieved");
+    digitalWrite(10, HIGH);
+  }
+
+  if(data_from_display == "MISTEROFF") {                        //Actions for OFF command
+    Serial.println("OFF command recieved");
+    digitalWrite(10, LOW);
+  }
+}
+
+//-----------------------------HEAT pin 11 coding on and off-----------------------
+
+void DataFromNextionHEAT(String data_from_display) {
+  if(data_from_display == "HEATON") {                         //Actions for ON command
+    Serial.println("ON command recieved");
+    digitalWrite(11, HIGH);
+  }
+
+  if(data_from_display == "HEATOFF") {                        //Actions for OFF command
+    Serial.println("OFF command recieved");
+    digitalWrite(11, LOW);
+  }
+}
+
+void setup() {
+    Serial.begin(115200);              //-------------The default baud rate of the Nextion TFT is 9600.
+    Serial1.begin(9600);
+    dht.begin();
+
+    pinMode(7, OUTPUT);               //------------------------- LIGHTS relay pin D7
+    pinMode(8, OUTPUT);               //------------------------- Waterfall relay pin D8
+    pinMode(9, OUTPUT);               //------------------------- Fan relay pin D9
+    pinMode(10, OUTPUT);              //-------------------------Mister relay pin D10 
+    pinMode (11, OUTPUT);             //-------------------------heat mat relay pin D!!
+
+                    //--------WATERFALL LEVEL LED ------------------------
+    pinMode (red,OUTPUT);             //------------------------- Waterfall level pin A7
+    pinMode (white,OUTPUT);           //------------------------- Waterfall level pin A8
+    pinMode (blue,OUTPUT);            //------------------------- Waterfall level pin A9   
+
+  if (! rtc.begin()) {
+    Serial.println("NO RTC3231");
+    while (1);
+  }
+
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, lets set the time!");
+    rtc.adjust(DateTime(F(__TIME__), F(__DATE__)));
+  }
+}
+
+void loop() {
+    if(Serial1.available()) {                                       //Check For Recieved Data
+    String data_from_display = "";                                  //Declare Empty String
+    delay(30);                                                      //Make Sure all data is recieved
+    while(Serial1.available()){               
+      data_from_display += char(Serial1.read());                     //Place recieved data in string
+
+    //Serial Monitor Send
+    Serial.print("Recieved Data: ");    Serial.print(data_from_display);    Serial.println();
+    DataFromNextionWATERFALL(data_from_display);                             //Function Switch For Data
+    DataFromNextionFAN(data_from_display);
+    DataFromNextionMISTER(data_from_display);
+    DataFromNextionLIGHTS(data_from_display);
+    DataFromNextionHEAT(data_from_display);
+  }
+
+
+  void readDHT22();
+  float h = dht.readHumidity();             // Read the humidity in %:
+  float f = dht.readTemperature(true);      // Read the temperature as Fahrenheit:
+
+  if (isnan(h) || isnan(f)) {          // Check if any reads failed and exit early (to try again):
+    Serial.println("Failed to read from DHT sensor!");
+    return;
+  }
+  float hif = dht.computeHeatIndex(f, h);    // Compute heat index in Fahrenheit (default):
+  float hic = dht.computeHeatIndex(h, false);
+
+  Serial.print("Humidity: ");  Serial.print(h);  Serial.print(" % ");
+  Serial.print("Temperature: ");  Serial.print(f);  Serial.print(" \xC2\xB0");  Serial.print("F ");  
+  Serial.print("Heat index: ");  Serial.print(hif);  Serial.print(" \xC2\xB0");  Serial.println("F");
+
+  void readRTC(); {
+  DateTime now = rtc.now();
+
+  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);  Serial.print(now.hour(), DEC); Serial.print(':');
+  Serial.print(now.minute(), DEC); Serial.print(':');  Serial.println(now.second(), DEC);
+  }
+
+void readWATERLEVEL();  {
+  int value = analogRead(A1);   // read the input on analog pin A1:
+  Serial.print ("Water Level  ");
+
+  if (value > 550) {
+    Serial.println("Full");    digitalWrite (red,HIGH);    digitalWrite(white,LOW);    digitalWrite(blue,LOW);
+    }
+
+  else if ((value > 500) && (value <= 600)) {
+    Serial.println("Good");    digitalWrite (white,HIGH);    digitalWrite (red,LOW);    digitalWrite(blue,LOW);
+    }
+
+  else  {
+    Serial.println("Refill");    digitalWrite (blue,HIGH);    digitalWrite (red,LOW);    digitalWrite (white,LOW);
+  }
+}
+
+void readHumiditynext(); {
+    Serial1.print("n1.val=" + String(h));       //humidity value
+    Serial1.write(0xFF);    Serial1.write(0xFF);    Serial1.write(0xFF);
+}
+// ---------------------------------------------------------------------------- 
+//
+//void readWaterlevelnext(); {    
+//    Serial1.print("j0.val=" + String(WaterLevelBar));         //Progress Bar Setting pin A1 lvl sensor
+//   Serial1.write(0xFF);    Serial1.write(0xFF);    Serial1.write(0xFF);
+//   }
+  }
+}
